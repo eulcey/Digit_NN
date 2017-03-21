@@ -1,0 +1,4 @@
+data_sets
+neural_network.py~
+__pycache__
+*.npy
