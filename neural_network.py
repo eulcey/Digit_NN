@@ -1,6 +1,7 @@
 """A 3 level Neural Network
 to recognise handwritten digits
 """
+
 import math
 import numpy as np
 from matplotlib import pyplot as plt
@@ -105,6 +106,7 @@ def decode_images(image_file):
         for i in range(image_count):
             image = list()
             for j in range(row_count):
+                # normalization of data should be made already
                 row = [int.from_bytes(f.read(1),byteorder='big')
                        for _ in range(col_count)] 
                 image.extend(row)
@@ -154,6 +156,7 @@ class NeuralNetwork:
         pass
 
     def trainWithFiles(self):
+        """Trains the network with pre-calculated weights, if files are avaible"""
         try:
             self.level_one = np.load(LEVEL_ONE_FILE)
         except FileNotFoundError:
