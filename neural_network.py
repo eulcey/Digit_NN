@@ -13,7 +13,7 @@ TEST_LABEL_FILE = "./data_sets/t10k-labels-idx1-ubyte"
 ORIG_INPUTS = 28*28
 TRIM_INPUTS = 20*20
 TRIMMED = True
-TRAIN_NEW = False
+TRAIN_NEW = True
 
 TRAIN_MAT_FILE = "train_data.npy" if TRIMMED else "train_data_orig.npy"
 TRAINLAB_MAT_FILE = "train_labels.npy" if TRIMMED else "train_labels_orig.npy"
@@ -44,7 +44,18 @@ def sigmoid(x):
 def sigmoid_der(x):
     """Returns the value of the derivative of the sigmoid function"""
     return sigmoid(x) * (1 - sigmoid(x))
-        
+
+def tanh(x):
+    """Returns the tanh value of -x"""
+    return np.tanh(x)
+
+def tanh_der(x):
+    """Returns the value of the derivative of the tanh function"""
+    return 1- np.square(np.tanh(x))
+
+INNER_AMOUNT = 30
+NN_FUNCTION = sigmoid
+NN_DERIVATIVE = sigmoid_der       
 
 def test_network():
     """Tests the prediction error of a neural network"""
@@ -68,7 +79,7 @@ def test_network():
     except FileNotFoundError:
         test_labels = decode_labels(TEST_LABEL_FILE)
         np.save(TESTLAB_MAT_FILE, test_labels)
-    network = NeuralNetwork()
+    network = NeuralNetwork(INNER_AMOUNT, NN_FUNCTION, NN_DERIVATIVE)
     # Try first to load trained matrices, otherwise generate new weight matrices
     if TRAIN_NEW:
         network.train(training_set, training_labels)
@@ -142,18 +153,18 @@ def decode_labels(label_file):
 
 def plot_error(error_array):
     """Plots the error to the number of cycles"""
-    x = [(i+1) for i in range(NeuralNetwork.TRAINING_CYCLES)]
-    y = list(error_array)
-    plt.plot(x,y)
+    #x = [(i+1) for i in range(NeuralNetwork.TRAINING_CYCLES)]
+    #y = list(error_array)
+    plt.plot(error_array)
     plt.ylabel('mean square error')
-    plt.xlabel('cycle count')
+    plt.xlabel('cycle count (in sixty thousend)')
     plt.show()
 
 
 class NeuralNetwork:
     """A 3 level Neural Network"""
 
-    TRAINING_CYCLES = 400
+    TRAINING_CYCLES = 5
 
 
     def __init__(self, inner_neurons=30, function=sigmoid, derivative=sigmoid_der):
@@ -179,8 +190,8 @@ class NeuralNetwork:
             cycle_error = 0
             for image, label in zip(training_set, training_label):
                 count += 1
-                if (count % 100000 == 0):
-                    print("No on cycle %d" % count)
+                if (count % 10000 == 0):
+                    print("Train image cycle: %d" % count)
                 target = np.zeros([10])
                 target[np.int8(label)] = 1
                 data = np.append(image, 1)
