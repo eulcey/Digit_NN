@@ -84,8 +84,6 @@ def test_network():
         else:
             negative[result] += 1
         amount[label] += 1
-    #print(correct)
-    #print(negative)
     precision = [true/(true+false) if true > 0 and false > 0 else 0
                  for (true, false) in list(zip(correct, negative))]
     recall = [true/relevant for (true, relevant) in list(zip(correct, amount))]
@@ -134,7 +132,6 @@ def decode_labels(label_file):
         label_mat = np.zeros([label_count])
         print("Labels: %d" % label_count)
         for i in range(label_count):
-#            label_list.append(int.from_bytes(f.read(1), byteorder='big'))
             # normalize labels
             label_mat[i] = int.from_bytes(f.read(1), byteorder='big')
     return label_mat
@@ -153,7 +150,6 @@ class NeuralNetwork:
         innerNeurons -- amount of Neurons in the hidden layer
         function -- activation function of the neurons
         """       
-        #self.inner_neurons = inner_neurons
         #self.level_one = [[1 for i in range(INPUTS)] for j in range(inner_neurons + 1)]
         self.level_one = np.random.random([inner_neurons, (TRIM_INPUTS if TRIMMED else ORIG_INPUTS) + 1])
         self.level_one = (self.level_one - 0.5) * 2
@@ -164,47 +160,37 @@ class NeuralNetwork:
         self.func_der = np.vectorize(derivative)
 
     def train(self, training_set, training_label):
+        # TODO FIX "Overflow encountered in ? (vectorized)" from numpy
+        # TODO implement plot of error (target-calculated)
         """Trains the Network with the given training set"""
         np.save("init_level_one.npy", self.level_one)
         np.save("init_level_two.npy", self.level_two)
         safe = self.level_two
         count = 0
-        #a = True
         for i in range(NeuralNetwork.TRAINING_CYCLES):
             for image, label in zip(training_set, training_label):
-            #if a:
                 count += 1
                 if (count % 10000 == 0):
                     print("No on cycle %d" % count)
-                #image = training_set[0,:]
-                #label = training_label[0]
-                #
                 target = np.zeros([10])
                 target[np.int8(label)] = 1
                 data = np.append(image, 1)
                 first_step = self.level_one.dot(data)
                 test = (self.level_one).dot(data)
-                #print(np.max(test))
                 first_act_level = self.func(first_step)
                 second_step = self.level_two.dot(first_act_level)
                 calculated = self.func(second_step)
                 delta_out = self.func_der(second_step) * (target - calculated)
-                #print(np.shape(delta_out))
-                #print(np.shape(first_act_level))
                 level_two_change = np.outer(delta_out, first_act_level) # later to add to level_two
                 #delta_hidden = self.level_two.dot(self.func_der(first_step)) * delta_out
                 # probably the wrong order
-                #print(np.shape(delta_hidden))
                 delta_hidden = (delta_out.dot(self.level_two)
                                 * self.func_der(first_step))
                 level_one_change = np.outer(delta_hidden, data)
-                #print(np.shape(level_one_change))
                 self.level_two = self.level_two + level_two_change
                 self.level_one = self.level_one + level_one_change
-                #a = False
         np.save("last_level_one.npy", self.level_one)
         np.save("last_level_two.npy", self.level_two)
-        #print(self.level_two - safe)
 
     def trainWithFiles(self):
         """Trains the network with pre-calculated weights, if files are avaible"""
@@ -224,9 +210,6 @@ class NeuralNetwork:
         first_act_level = self.func(first_step)
         second_step = self.level_two.dot(first_act_level)
         second_act_level = self.func(second_step)
-        #print("calc")
-        #print(first_act_level)
-        #print(second_act_level)
         return second_act_level
 
     def predict(self, image):
