@@ -2,7 +2,6 @@
 to recognise handwritten digits
 """
 
-import math
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -109,13 +108,12 @@ def decode_images(image_file):
         image_count = int.from_bytes(f.read(4), byteorder='big')
         row_count = int.from_bytes(f.read(4), byteorder='big')
         col_count = int.from_bytes(f.read(4), byteorder='big')
-        #image_mat = np.zeros([image_count, row_count * col_count]) # old 28*28 image matrix
         image_mat = np.zeros([image_count, TRIM_INPUTS if TRIMMED else ORIG_INPUTS])
         print("Image: %d, row: %d, col: %d" % (image_count, row_count, col_count))
         for i in range(image_count):
             image = list()
             for j in range(row_count):
-                # normalization of data should be made already
+                # normalization of data 
                 row = [(int.from_bytes(f.read(1),byteorder='big')-127)/127
                        for _ in range(col_count)] 
                 image.extend(row)
@@ -164,10 +162,8 @@ class NeuralNetwork:
         innerNeurons -- amount of Neurons in the hidden layer
         function -- activation function of the neurons
         """       
-        #self.level_one = [[1 for i in range(INPUTS)] for j in range(inner_neurons + 1)]
         self.level_one = np.random.random([inner_neurons, (TRIM_INPUTS if TRIMMED else ORIG_INPUTS) + 1])
         self.level_one = (self.level_one - 0.5) * 2
-        #self.level_two = [[1 for i in range(inner_neurons + 1)] for j in range(10)]
         self.level_two = np.random.random([10, inner_neurons])
         self.level_two = (self.level_two - 0.5) * 2
         self.func = np.vectorize(function)
@@ -177,7 +173,6 @@ class NeuralNetwork:
         """Trains the Network with the given training set"""
         np.save("init_level_one.npy", self.level_one)
         np.save("init_level_two.npy", self.level_two)
-        #safe = self.level_two
         count = 0
         error = list()
         for i in range(NeuralNetwork.TRAINING_CYCLES):
@@ -198,8 +193,6 @@ class NeuralNetwork:
                 cycle_error += np.sqrt(target_error.dot(target_error)/target_error.size)
                 delta_out = self.func_der(second_step) * target_error
                 level_two_change = np.outer(delta_out, first_act_level) # later to add to level_two
-                #delta_hidden = self.level_two.dot(self.func_der(first_step)) * delta_out
-                # probably the wrong order
                 delta_hidden = (delta_out.dot(self.level_two)
                                 * self.func_der(first_step))
                 level_one_change = np.outer(delta_hidden, data)
