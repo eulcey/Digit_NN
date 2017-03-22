@@ -17,8 +17,8 @@ unzip sets and put binary files into ./data_sets
 Format of Neural Network training_set and training_labels
 ------------------------
 
-training_set: 2D NumPy array with rows as flattened image pixel values between -1 and 1
-training_labels: 1D NumPy array with labels between 0 and 9
+- training_set: 2D NumPy array with rows as flattened image pixel values between -1 and 1
+- training_labels: 1D NumPy array with labels between 0 and 9
 
 Different options
 -----------------
@@ -32,6 +32,5 @@ Different options
 Used Libraries
 --------------
 
-- math
 - NumPy
 - Matplotlib
