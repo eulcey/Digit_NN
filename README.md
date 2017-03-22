@@ -6,6 +6,6 @@ A Neural Network in Python
 Used Libraries
 --------------
 
-math
-NumPy
-Matplotlib
+- math
+- NumPy
+- Matplotlib
