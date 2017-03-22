@@ -14,6 +14,7 @@ TEST_LABEL_FILE = "./data_sets/t10k-labels-idx1-ubyte"
 ORIG_INPUTS = 28*28
 TRIM_INPUTS = 20*20
 TRIMMED = True
+TRAIN_NEW = False
 
 TRAIN_MAT_FILE = "train_data.npy" if TRIMMED else "train_data_orig.npy"
 TRAINLAB_MAT_FILE = "train_labels.npy" if TRIMMED else "train_labels_orig.npy"
@@ -33,12 +34,13 @@ def show_digit(data, width):
 
 def sigmoid(x):
     """Returns the sigmoid value of x"""
-    try:
-        val = math.exp(-x)
-    except OverflowError:
-        return 0
-    else:
-        return 1/(1 + math.exp(-x))
+    with np.errstate(over='raise'):
+        try:
+            val = np.exp(-x)
+        except FloatingPointError:
+            return 0
+        else:
+            return 1/(1 + val)
 
 def sigmoid_der(x):
     """Returns the value of the derivative of the sigmoid function"""
@@ -69,9 +71,12 @@ def test_network():
         np.save(TESTLAB_MAT_FILE, test_labels)
     network = NeuralNetwork()
     # Try first to load trained matrices, otherwise generate new weight matrices
-    if not network.trainWithFiles():
-        print("Begin training new weights")
+    if TRAIN_NEW:
         network.train(training_set, training_labels)
+    else:
+        if not network.trainWithFiles():
+            print("Begin training new weights")
+            network.train(training_set, training_labels)
     correct = [0 for i in range(10)]
     negative = [0 for i in range(10)]
     amount = [0 for i in range(10)]
@@ -97,7 +102,7 @@ def test_network():
 def decode_images(image_file):
     """Creates a matrix where each row is one image"""
     if image_file is None or image_file is "":
-        print("No file given to create_sets")
+        print("No file given to decode_images")
     image_mat = None
     with open(image_file, "rb") as f:
         magic_number = f.read(4)
@@ -124,7 +129,7 @@ def decode_images(image_file):
 def decode_labels(label_file):
     """Creates a vector where each value is a label between 0 and 9"""
     if label_file is None or label_file is "":
-        print("No file given to create_sets")
+        print("No file given to decode_labels")
     label_mat = None
     with open(label_file, "rb") as f:
         magic_number = f.read(4)
@@ -137,12 +142,20 @@ def decode_labels(label_file):
             label_mat[i] = int.from_bytes(f.read(1), byteorder='big')
     return label_mat
 
+def plot_error(error_array):
+    """Plots the error to the number of cycles"""
+    x = [(i+1) for i in range(NeuralNetwork.TRAINING_CYCLES)]
+    y = list(error_array)
+    plt.plot(x,y)
+    plt.ylabel('mean square error')
+    plt.xlabel('cycle count')
+    plt.show()
 
 
 class NeuralNetwork:
     """A 3 level Neural Network"""
 
-    TRAINING_CYCLES = 300
+    TRAINING_CYCLES = 400
 
 
     def __init__(self, inner_neurons=30, function=sigmoid, derivative=sigmoid_der):
@@ -161,8 +174,6 @@ class NeuralNetwork:
         self.func_der = np.vectorize(derivative)
 
     def train(self, training_set, training_label):
-        # TODO FIX "Overflow encountered in ? (vectorized)" from numpy
-        # TODO implement plot of error (target-calculated)
         """Trains the Network with the given training set"""
         np.save("init_level_one.npy", self.level_one)
         np.save("init_level_two.npy", self.level_two)
@@ -170,6 +181,7 @@ class NeuralNetwork:
         count = 0
         error = list()
         for i in range(NeuralNetwork.TRAINING_CYCLES):
+            cycle_error = 0
             for image, label in zip(training_set, training_label):
                 count += 1
                 if (count % 100000 == 0):
@@ -183,7 +195,7 @@ class NeuralNetwork:
                 second_step = self.level_two.dot(first_act_level)
                 calculated = self.func(second_step)
                 target_error = target - calculated
-                
+                cycle_error += np.sqrt(target_error.dot(target_error)/target_error.size)
                 delta_out = self.func_der(second_step) * target_error
                 level_two_change = np.outer(delta_out, first_act_level) # later to add to level_two
                 #delta_hidden = self.level_two.dot(self.func_der(first_step)) * delta_out
@@ -193,6 +205,8 @@ class NeuralNetwork:
                 level_one_change = np.outer(delta_hidden, data)
                 self.level_two = self.level_two + level_two_change
                 self.level_one = self.level_one + level_one_change
+            error.append(cycle_error/training_set.size)
+        np.save("error_list.npy", np.array(error))
         np.save("last_level_one.npy", self.level_one)
         np.save("last_level_two.npy", self.level_two)
 
