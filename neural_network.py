@@ -40,6 +40,11 @@ def sigmoid(x):
     else:
         return 1/(1 + math.exp(-x))
 
+def sigmoid_der(x):
+    """Returns the value of the derivative of the sigmoid function"""
+    return sigmoid(x) * (1 - sigmoid(x))
+        
+
 def test_network():
     """Tests the prediction error of a neural network"""
     try:
@@ -137,8 +142,10 @@ def decode_labels(label_file):
 class NeuralNetwork:
     """A 3 level Neural Network"""
 
+    TRAINING_CYCLES = 100
 
-    def __init__(self, inner_neurons=30, function=sigmoid):
+
+    def __init__(self, inner_neurons=30, function=sigmoid, derivative=sigmoid_der):
         """
         Keyword arguments:
         innerNeurons -- amount of Neurons in the hidden layer
@@ -150,10 +157,48 @@ class NeuralNetwork:
         #self.level_two = [[1 for i in range(inner_neurons + 1)] for j in range(10)]
         self.level_two = np.random.random([10, inner_neurons])
         self.func = np.vectorize(function)
+        self.func_der = np.vectorize(derivative)
 
     def train(self, training_set, training_label):
         """Trains the Network with the given training set"""
-        pass
+        np.save("init_level_one.npy", self.level_one)
+        np.save("init_level_two.npy", self.level_two)
+        safe = self.level_two
+        count = 0
+        #a = True
+        for i in range(NeuralNetwork.TRAINING_CYCLES):
+            for image, label in zip(training_set, training_label):
+            #if a:
+                count += 1
+                if (count % 10000 == 0):
+                    print("No on cycle %d" % count)
+                image = training_set[0,:]
+                label = training_label[0]
+                #
+                target = np.zeros([10])
+                target[np.int8(label)] = 1
+                data = np.append(image, 1)
+                first_step = self.level_one.dot(data)
+                first_act_level = self.func(first_step)
+                second_step = self.level_two.dot(first_act_level)
+                calculated = self.func(second_step)
+                delta_out = self.func_der(second_step) * (target - calculated)
+                #print(np.shape(delta_out))
+                #print(np.shape(first_act_level))
+                level_two_change = np.outer(delta_out, first_act_level) # later to add to level_two
+                #delta_hidden = self.level_two.dot(self.func_der(first_step)) * delta_out
+                # probably the wrong order
+                #print(np.shape(delta_hidden))
+                delta_hidden = (delta_out.dot(self.level_two)
+                                * self.func_der(first_step))
+                level_one_change = np.outer(delta_hidden, data)
+                #print(np.shape(level_one_change))
+                self.level_two = self.level_two + level_two_change
+                self.level_one = self.level_one + level_one_change
+                #a = False
+        np.save("last_level_one.npy", self.level_one)
+        np.save("last_level_two.npy", self.level_two)
+        #print(self.level_two - safe)
 
     def trainWithFiles(self):
         """Trains the network with pre-calculated weights, if files are avaible"""
@@ -166,11 +211,15 @@ class NeuralNetwork:
         except FileNotFoundError:
             return False
 
-    def predict(self, image):
-        """Predicts the given data with the trained set"""
+    def __calc_prob(self, image):
+        """Calculates the network results for each digit on the given image"""
         data = np.append(image, 1) # append bias
         first_step = self.level_one.dot(data)
         first_act_level = self.func(first_step)
         second_step = self.level_two.dot(first_act_level)
         second_act_level = self.func(second_step)
-        return np.argmax(second_act_level) # only returns first most likely digit for now
+        return second_act_level
+
+    def predict(self, image):
+        """Predicts the given data with the trained set"""
+        return np.argmax(self.__calc_prob(image)) # only returns first most likely digit for now
