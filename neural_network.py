@@ -112,7 +112,7 @@ def decode_images(image_file):
             image = list()
             for j in range(row_count):
                 # normalization of data should be made already
-                row = [int.from_bytes(f.read(1),byteorder='big')
+                row = [(int.from_bytes(f.read(1),byteorder='big')-127)/127
                        for _ in range(col_count)] 
                 image.extend(row)
             # trim row, col 28 -> 20
@@ -129,11 +129,13 @@ def decode_labels(label_file):
     label_mat = None
     with open(label_file, "rb") as f:
         magic_number = f.read(4)
+        # TODO normalize
         label_count = int.from_bytes(f.read(4), byteorder='big')
         label_mat = np.zeros([label_count])
         print("Labels: %d" % label_count)
         for i in range(label_count):
 #            label_list.append(int.from_bytes(f.read(1), byteorder='big'))
+            # normalize labels
             label_mat[i] = int.from_bytes(f.read(1), byteorder='big')
     return label_mat
 
@@ -142,7 +144,7 @@ def decode_labels(label_file):
 class NeuralNetwork:
     """A 3 level Neural Network"""
 
-    TRAINING_CYCLES = 100
+    TRAINING_CYCLES = 10
 
 
     def __init__(self, inner_neurons=30, function=sigmoid, derivative=sigmoid_der):
@@ -154,8 +156,10 @@ class NeuralNetwork:
         #self.inner_neurons = inner_neurons
         #self.level_one = [[1 for i in range(INPUTS)] for j in range(inner_neurons + 1)]
         self.level_one = np.random.random([inner_neurons, (TRIM_INPUTS if TRIMMED else ORIG_INPUTS) + 1])
+        self.level_one = (self.level_one - 0.5) * 2
         #self.level_two = [[1 for i in range(inner_neurons + 1)] for j in range(10)]
         self.level_two = np.random.random([10, inner_neurons])
+        self.level_two = (self.level_two - 0.5) * 2
         self.func = np.vectorize(function)
         self.func_der = np.vectorize(derivative)
 
@@ -172,13 +176,15 @@ class NeuralNetwork:
                 count += 1
                 if (count % 10000 == 0):
                     print("No on cycle %d" % count)
-                image = training_set[0,:]
-                label = training_label[0]
+                #image = training_set[0,:]
+                #label = training_label[0]
                 #
                 target = np.zeros([10])
                 target[np.int8(label)] = 1
                 data = np.append(image, 1)
                 first_step = self.level_one.dot(data)
+                test = (self.level_one).dot(data)
+                #print(np.max(test))
                 first_act_level = self.func(first_step)
                 second_step = self.level_two.dot(first_act_level)
                 calculated = self.func(second_step)
@@ -218,6 +224,9 @@ class NeuralNetwork:
         first_act_level = self.func(first_step)
         second_step = self.level_two.dot(first_act_level)
         second_act_level = self.func(second_step)
+        #print("calc")
+        #print(first_act_level)
+        #print(second_act_level)
         return second_act_level
 
     def predict(self, image):
