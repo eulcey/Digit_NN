@@ -70,6 +70,7 @@ def test_network():
     network = NeuralNetwork()
     # Try first to load trained matrices, otherwise generate new weight matrices
     if not network.trainWithFiles():
+        print("Begin training new weights")
         network.train(training_set, training_labels)
     correct = [0 for i in range(10)]
     negative = [0 for i in range(10)]
@@ -141,7 +142,7 @@ def decode_labels(label_file):
 class NeuralNetwork:
     """A 3 level Neural Network"""
 
-    TRAINING_CYCLES = 10
+    TRAINING_CYCLES = 300
 
 
     def __init__(self, inner_neurons=30, function=sigmoid, derivative=sigmoid_der):
@@ -165,12 +166,13 @@ class NeuralNetwork:
         """Trains the Network with the given training set"""
         np.save("init_level_one.npy", self.level_one)
         np.save("init_level_two.npy", self.level_two)
-        safe = self.level_two
+        #safe = self.level_two
         count = 0
+        error = list()
         for i in range(NeuralNetwork.TRAINING_CYCLES):
             for image, label in zip(training_set, training_label):
                 count += 1
-                if (count % 10000 == 0):
+                if (count % 100000 == 0):
                     print("No on cycle %d" % count)
                 target = np.zeros([10])
                 target[np.int8(label)] = 1
@@ -180,7 +182,9 @@ class NeuralNetwork:
                 first_act_level = self.func(first_step)
                 second_step = self.level_two.dot(first_act_level)
                 calculated = self.func(second_step)
-                delta_out = self.func_der(second_step) * (target - calculated)
+                target_error = target - calculated
+                
+                delta_out = self.func_der(second_step) * target_error
                 level_two_change = np.outer(delta_out, first_act_level) # later to add to level_two
                 #delta_hidden = self.level_two.dot(self.func_der(first_step)) * delta_out
                 # probably the wrong order
@@ -197,11 +201,14 @@ class NeuralNetwork:
         try:
             self.level_one = np.load(LEVEL_ONE_FILE)
         except FileNotFoundError:
+            print("Level One File not found")
             return False
         try:
             self.level_two = np.load(LEVEL_TWO_FILE)
         except FileNotFoundError:
+            print("Level Two File not found")
             return False
+        return True
 
     def __calc_prob(self, image):
         """Calculates the network results for each digit on the given image"""
